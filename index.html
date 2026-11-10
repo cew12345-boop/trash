@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full select-none">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>資源回收挑戰：分類大作戰</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;900&family=Noto+Sans+TC:wght@600;800;900&display=swap');
+
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', 'Fredoka', sans-serif;
+      touch-action: manipulation;
+      background: linear-gradient(180deg, #cbebf6 0%, #dcfce7 70%, #bbf7d0 100%);
+      overflow: hidden;
+    }
+
+    /* Cartoon Text Shadows */
+    .title-cartoon-text {
+      color: #facc15;
+      text-shadow: 
+        3px 3px 0px #15803d,
+        -3px -3px 0px #15803d,
+        3px -3px 0px #15803d,
+        -3px 3px 0px #15803d,
+        0px 5px 0px #166534,
+        0px 8px 12px rgba(0,0,0,0.35);
+    }
+
+    .title-banner-bg {
+      background: linear-gradient(180deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+      box-shadow: 0 6px 0 #92400e, 0 10px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Conveyor Belt & Rollers Animation */
+    .conveyor-track {
+      background: #475569;
+      box-shadow: inset 0 4px 8px rgba(0,0,0,0.5);
+    }
+
+    .roller-line {
+      background: repeating-linear-gradient(
+        90deg,
+        #334155 0px,
+        #334155 18px,
+        #64748b 18px,
+        #64748b 22px,
+        #1e293b 22px,
+        #1e293b 40px
+      );
+      animation: moveRollers 1.2s linear infinite;
+    }
+    .roller-line.paused {
+      animation-play-state: paused;
+    }
+
+    @keyframes moveRollers {
+      0% { background-position: 0 0; }
+      100% { background-position: 80px 0; }
+    }
+
+    /* Selected Item Highlight */
+    .item-selected {
+      outline: 4px solid #3b82f6;
+      outline-offset: 4px;
+      transform: scale(1.1) translateY(-6px);
+      box-shadow: 0 12px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Score Popups */
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      50% { opacity: 1; transform: translateY(-30px) scale(1.2); }
+      100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+    }
+    .score-popup {
+      animation: floatUp 0.9s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+      pointer-events: none;
+    }
+
+    /* Screen Shake */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-12px); }
+      40%, 80% { transform: translateX(12px); }
+    }
+    .shake-screen {
+      animation: shake 0.35s ease-in-out;
+    }
+
+    /* Cleaning Water Effect */
+    @keyframes washWater {
+      0% { filter: drop-shadow(0 0 0px #38bdf8); transform: scale(1); }
+      50% { filter: drop-shadow(0 0 15px #0284c7) brightness(1.2); transform: scale(1.15) rotate(-6deg); }
+      100% { filter: drop-shadow(0 0 0px #38bdf8); transform: scale(1); }
+    }
+    .wash-anim { animation: washWater 0.45s ease-in-out; }
+
+    /* Flatten Squish Effect */
+    @keyframes flattenSquish {
+      0% { transform: scale(1, 1); }
+      50% { transform: scale(1.3, 0.5); }
+      100% { transform: scale(1, 0.8); }
+    }
+    .flatten-anim { animation: flattenSquish 0.4s ease forwards; }
+
+    /* Cat Float & Wave Animation */
+    @keyframes catFloat {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-6px) rotate(2deg); }
+    }
+    .cat-bounce-idle {
+      animation: catFloat 2.5s ease-in-out infinite;
+    }
+
+    /* Bin Drop Hover State */
+    .bin-target.drag-over {
+      transform: scale(1.08);
+      filter: brightness(1.2);
+      box-shadow: 0 0 25px rgba(255,255,255,0.8);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between p-2 md:p-4 relative max-w-5xl mx-auto overflow-hidden">
+
+  <!-- ================= TOP HEADER BAR ================= -->
+  <header class="w-full flex items-center justify-between gap-2 z-20">
+    <!-- Home Button (Top Left) -->
+    <button id="home-btn" class="w-11 h-11 md:w-13 md:h-13 bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-white rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-lg border-2 border-cyan-200 transition shrink-0">
+      <i class="fa-solid fa-house"></i>
+    </button>
+
+    <!-- Curved Cartoon Title Banner -->
+    <div class="flex-1 flex flex-col items-center">
+      <div class="title-banner-bg px-4 py-1.5 md:px-8 md:py-2 rounded-full border-4 border-white flex items-center justify-center transform -rotate-1 shadow-xl">
+        <h1 class="title-cartoon-text text-xl md:text-3xl font-black tracking-wider text-center whitespace-nowrap">
+          資源回收挑戰：分類大作戰
+        </h1>
+      </div>
+      <!-- Top Capsule Badge -->
+      <div class="bg-white/90 border-2 border-amber-900/30 text-amber-950 font-black text-xs md:text-sm px-4 py-0.5 rounded-full mt-1 shadow-sm">
+        核心原則：「乾淨」與「分類」
+      </div>
+    </div>
+
+    <!-- Top Right Stats: SCORE & TIMER -->
+    <div class="flex flex-col items-end gap-1 font-mono font-black text-slate-800 shrink-0">
+      <div class="flex items-center gap-1.5 text-xs md:text-sm bg-white/80 px-2.5 py-1 rounded-xl border border-slate-300 shadow-sm">
+        <span class="text-slate-500 text-[10px]">SCORE:</span>
+        <span id="score-display" class="text-amber-600 text-sm md:text-xl font-black">00000</span>
+      </div>
+      <div class="flex items-center gap-1.5 text-xs md:text-sm bg-white/80 px-2.5 py-1 rounded-xl border border-slate-300 shadow-sm">
+        <i class="fa-regular fa-clock text-sky-600"></i>
+        <span id="timer-display" class="text-sky-700 text-sm md:text-lg font-black">01:30</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MIDDLE MAIN GAME CANVAS & CONVEYOR ================= -->
+  <main class="flex-1 relative flex flex-col justify-between my-2 z-10">
+
+    <!-- Background Artwork Elements: Sky, Solar Panel Roof, Green Loop Symbol -->
+    <div class="absolute inset-0 pointer-events-none -z-10 flex flex-col justify-between">
+      <div class="w-full flex justify-between items-start pt-2 px-6">
+        <div class="text-emerald-700/30 text-4xl"><i class="fa-solid fa-tree"></i><i class="fa-solid fa-tree ml-1"></i></div>
+        <div class="text-emerald-500 text-6xl md:text-8xl opacity-80 drop-shadow-md transform hover:rotate-12 transition duration-700">
+          <i class="fa-solid fa-recycle"></i>
+        </div>
+        <div class="bg-slate-700/20 border-2 border-slate-400/40 rounded-xl p-2 flex gap-1">
+          <div class="w-6 h-8 bg-sky-600/40 rounded border border-sky-300/40"></div>
+          <div class="w-6 h-8 bg-sky-600/40 rounded border border-sky-300/40"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left Info Panel Overlay: 分類小常識 -->
+    <div class="absolute left-1 top-2 bg-white/90 backdrop-blur border-2 border-cyan-400 rounded-2xl p-2.5 md:p-3 shadow-lg z-20 max-w-[120px] md:max-w-[150px]">
+      <div class="font-black text-xs md:text-sm text-slate-800 mb-1 flex items-center gap-1 border-b pb-1 border-slate-200">
+        <i class="fa-solid fa-lightbulb text-amber-500"></i> 分類小常識
+      </div>
+      <ul class="text-[11px] md:text-xs font-bold text-slate-700 space-y-1">
+        <li class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>紙類</li>
+        <li class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>廚餘</li>
+        <li class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span>資源回收</li>
+      </ul>
+    </div>
+
+    <!-- Dynamic Hint Callout Bubble above Conveyor -->
+    <div id="hint-bubble" class="self-center bg-amber-100 border-2 border-amber-400 text-amber-950 font-black text-xs md:text-sm px-4 py-1 rounded-full shadow-md z-30 transition-all duration-300 transform scale-100 flex items-center gap-1.5 opacity-90">
+      <i class="fa-solid fa-circle-info text-amber-600"></i>
+      <span id="hint-text">點擊選取物品，處理後丟入正確回收桶！</span>
+    </div>
+
+    <!-- Conveyor Belt Assembly -->
+    <div class="w-full h-32 md:h-40 bg-slate-800 rounded-3xl border-4 border-slate-600 shadow-2xl relative overflow-hidden flex flex-col justify-between my-auto">
+      <div class="h-4 roller-line border-b border-slate-900" id="roller-top"></div>
+
+      <!-- Main Conveyor Belt Moving Surface -->
+      <div id="conveyor-surface" class="flex-1 relative w-full overflow-hidden flex items-center">
+        <div id="items-container" class="absolute inset-0 w-full h-full"></div>
+      </div>
+
+      <div class="h-4 roller-line border-t border-slate-900 flex items-center justify-between px-6" id="roller-bottom">
+        <div class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></div>
+        <div class="text-[10px] font-mono text-slate-400 tracking-widest uppercase">CONVEYOR BELT ACTIVE</div>
+        <div class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></div>
+      </div>
+    </div>
+
+    <!-- Center Action Buttons Dock: 清洗 & 壓扁 -->
+    <div class="self-center flex items-center gap-4 z-20 my-1">
+      <!-- Blue Clean Button -->
+      <button id="clean-btn" class="flex flex-col items-center justify-center bg-gradient-to-b from-sky-400 to-blue-600 hover:from-sky-300 hover:to-blue-500 active:scale-95 text-white font-black w-16 h-16 md:w-20 md:h-20 rounded-2xl border-2 border-white shadow-lg transition shadow-sky-300">
+        <i class="fa-solid fa-faucet-drip text-xl md:text-2xl mb-0.5"></i>
+        <span class="text-xs md:text-sm leading-none">清洗</span>
+      </button>
+
+      <!-- Orange Flatten Button -->
+      <button id="flatten-btn" class="flex flex-col items-center justify-center bg-gradient-to-b from-amber-400 to-orange-600 hover:from-amber-300 hover:to-orange-500 active:scale-95 text-white font-black w-16 h-16 md:w-20 md:h-20 rounded-2xl border-2 border-white shadow-lg transition shadow-amber-300">
+        <i class="fa-solid fa-weight-hanging text-xl md:text-2xl mb-0.5"></i>
+        <span class="text-xs md:text-sm leading-none">壓扁</span>
+      </button>
+    </div>
+
+  </main>
+
+  <!-- ================= BOTTOM RECYCLING BINS & CAT ASSISTANT ================= -->
+  <footer class="w-full grid grid-cols-12 gap-2 items-end z-20 pt-1">
+
+    <!-- BINS AREA (8 columns) -->
+    <div class="col-span-8 md:col-span-8 grid grid-cols-3 gap-2">
+      
+      <!-- 1. 一般垃圾 Bin (Red) -->
+      <div id="bin-trash" data-category="trash" class="bin-target bg-gradient-to-b from-red-500 to-rose-700 hover:from-red-400 hover:to-rose-600 text-white rounded-2xl p-2 border-4 border-red-300 shadow-xl flex flex-col items-center justify-between text-center cursor-pointer transition transform active:scale-95 h-32 md:h-40 relative">
+        <div class="w-full bg-red-800/50 rounded-lg py-0.5 font-black text-xs md:text-sm">一般垃圾</div>
+        <div class="my-auto text-3xl md:text-5xl drop-shadow">
+          <i class="fa-solid fa-trash-can"></i>
+        </div>
+        <div class="text-white/80 text-xl md:text-2xl">
+          <i class="fa-solid fa-recycle"></i>
+        </div>
+      </div>
+
+      <!-- 2. 廚餘 Bin (Green) -->
+      <div id="bin-food" data-category="food" class="bin-target bg-gradient-to-b from-emerald-500 to-green-700 hover:from-emerald-400 hover:to-green-600 text-white rounded-2xl p-2 border-4 border-emerald-300 shadow-xl flex flex-col items-center justify-between text-center cursor-pointer transition transform active:scale-95 h-32 md:h-40 relative">
+        <div class="w-full bg-emerald-900/50 rounded-lg py-0.5 font-black text-xs md:text-sm">廚餘</div>
+        <div class="my-auto flex gap-1 text-2xl md:text-4xl text-amber-200">
+          <i class="fa-solid fa-apple-whole"></i>
+          <i class="fa-solid fa-fish"></i>
+        </div>
+        <div class="text-white/80 text-xl md:text-2xl">
+          <i class="fa-solid fa-recycle"></i>
+        </div>
+      </div>
+
+      <!-- 3. 資源回收 Bin (Blue) -->
+      <div id="bin-recycle" data-category="recycle" class="bin-target bg-gradient-to-b from-blue-500 to-indigo-700 hover:from-blue-400 hover:to-indigo-600 text-white rounded-2xl p-2 border-4 border-blue-300 shadow-xl flex flex-col items-center justify-between text-center cursor-pointer transition transform active:scale-95 h-32 md:h-40 relative">
+        <div class="w-full bg-blue-900/50 rounded-lg py-0.5 font-black text-xs md:text-sm">資源回收</div>
+        <div class="my-auto text-3xl md:text-5xl drop-shadow">
+          <i class="fa-solid fa-boxes-packing"></i>
+        </div>
+        <div class="text-white/80 text-xl md:text-2xl">
+          <i class="fa-solid fa-recycle"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RED CAT ASSISTANT & CALLOUT CARDS (4 columns) -->
+    <div class="col-span-4 md:col-span-4 flex flex-col items-center justify-end relative">
+      
+      <!-- Lightbulb Speech Callout -->
+      <div class="bg-amber-100 border-2 border-amber-400 text-amber-950 font-black text-[10px] md:text-xs px-2.5 py-1 rounded-xl shadow mb-1 w-full text-center truncate">
+        💡 回收物再利用：工業、居家DIY
+      </div>
+
+      <div class="w-full flex items-end gap-1">
+        <!-- Chibi Cat Character (IMG_3405.jpeg) -->
+        <div id="cat-container" class="w-20 h-28 md:w-24 md:h-32 flex-shrink-0 flex flex-col items-center relative select-none transition-transform duration-300 cat-bounce-idle">
+          
+          <!-- Floating Particles Container -->
+          <div id="cat-particles" class="absolute -top-6 inset-x-0 h-10 pointer-events-none z-30 flex justify-center items-center"></div>
+
+          <!-- Cat Character SVG -->
+          <div class="relative w-full h-full flex flex-col items-center justify-end">
+            <svg viewBox="0 0 120 120" class="w-full h-full drop-shadow-lg">
+              <filter id="sticker-outline" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ffffff" flood-opacity="1"/>
+                <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#fbcfe8" flood-opacity="0.8"/>
+              </filter>
+
+              <g style="filter: url(#sticker-outline)">
+                <!-- Left Cat Ear -->
+                <path d="M 28 45 C 15 20, 12 5, 38 18 C 45 23, 46 35, 46 45 Z" fill="#aa3832" stroke="#521510" stroke-width="2.5"/>
+                <path d="M 32 38 C 22 22, 20 12, 36 20 Z" fill="#691a15"/>
+
+                <!-- Right Cat Ear -->
+                <path d="M 92 45 C 105 20, 108 5, 82 18 C 75 23, 74 35, 74 45 Z" fill="#aa3832" stroke="#521510" stroke-width="2.5"/>
+                <path d="M 88 38 C 98 22, 100 12, 84 20 Z" fill="#691a15"/>
+
+                <!-- Red/Auburn Hair Base -->
+                <ellipse cx="60" cy="55" rx="42" ry="38" fill="#aa3832" stroke="#521510" stroke-width="2.5"/>
+
+                <!-- Face Skin Base -->
+                <ellipse cx="60" cy="62" rx="28" ry="22" fill="#fff0e6"/>
+
+                <!-- Black Eye Blindfold -->
+                <path d="M 32 50 Q 60 54 88 50 L 88 64 Q 60 68 32 64 Z" fill="#1e1e24" stroke="#0a0a0f" stroke-width="2"/>
+                <path d="M 36 53 Q 60 57 84 53" stroke="#3f3f4e" stroke-width="1.5" fill="none"/>
+
+                <!-- Hair Bangs Layer -->
+                <path d="M 60 38 Q 50 50 42 62 Q 52 52 60 42 Q 68 52 78 62 Q 70 50 60 38 Z" fill="#b83b32" stroke="#521510" stroke-width="1.5"/>
+                <path d="M 35 40 Q 28 55 30 68 Q 36 56 40 48 Z" fill="#aa3832" stroke="#521510" stroke-width="1.5"/>
+                <path d="M 85 40 Q 92 55 90 68 Q 84 56 80 48 Z" fill="#aa3832" stroke="#521510" stroke-width="1.5"/>
+
+                <!-- Mouth Path (Dynamic) -->
+                <path id="cat-mouth-svg" d="M 54 71 Q 60 76 66 71" stroke="#7a201a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+                <!-- Dark Gothic Coat Body -->
+                <path d="M 38 82 Q 60 76 82 82 L 85 110 Q 60 115 35 110 Z" fill="#181820" stroke="#0a0a0f" stroke-width="2"/>
+                <!-- Silver Collar & Tie -->
+                <path d="M 48 82 L 60 96 L 72 82" stroke="#e2e8f0" stroke-width="2.5" fill="none"/>
+                <circle cx="60" cy="98" r="3" fill="#38bdf8"/>
+                
+                <!-- Tiny Paws -->
+                <ellipse cx="46" cy="96" rx="5" ry="4" fill="#181820" stroke="#e2e8f0" stroke-width="1"/>
+                <ellipse cx="74" cy="96" rx="5" ry="4" fill="#181820" stroke="#e2e8f0" stroke-width="1"/>
+              </g>
+            </svg>
+          </div>
+
+        </div>
+
+        <!-- Text Card next to Assistant -->
+        <div class="bg-sky-50 border-2 border-sky-300 rounded-xl p-1.5 md:p-2 text-[9px] md:text-[11px] font-bold text-slate-700 leading-tight shadow flex-1">
+          <div class="text-sky-800 font-black mb-0.5">紙類細分：</div>
+          報紙、書籍、雜誌、紙箱、牛皮紙袋、電話簿、一般影印紙
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Eco Progress Bar -->
+    <div class="col-span-12 w-full bg-slate-800/80 rounded-full h-4 border-2 border-slate-500 p-0.5 flex items-center overflow-hidden mt-1">
+      <div id="progress-bar-fill" class="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full transition-all duration-300 flex items-center justify-around px-2 text-[8px] text-white" style="width: 100%;">
+        <i class="fa-solid fa-recycle"></i>
+        <i class="fa-solid fa-recycle"></i>
+        <i class="fa-solid fa-recycle"></i>
+        <i class="fa-solid fa-recycle"></i>
+        <i class="fa-solid fa-recycle"></i>
+      </div>
+    </div>
+
+  </footer>
+
+  <!-- ================= START GAME MODAL ================= -->
+  <div id="start-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-4 border-emerald-400 relative overflow-hidden">
+      <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-3 shadow-inner">
+        <i class="fa-solid fa-recycle"></i>
+      </div>
+      <h2 class="text-2xl md:text-3xl font-black text-slate-800 mb-1">資源回收挑戰</h2>
+      <p class="text-emerald-600 font-black text-sm mb-4">分類大作戰 · 環保小尖兵</p>
+
+      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-left text-xs md:text-sm text-slate-700 mb-5 space-y-2 font-bold">
+        <div class="text-emerald-800 font-black flex items-center gap-1">
+          <i class="fa-solid fa-gamepad"></i> 遊戲說明：
+        </div>
+        <p>1. 點擊傳送帶上的物品，將其分類拖曳或點選至正確的垃圾桶。</p>
+        <p>2. <strong class="text-blue-600">塑膠餐盒、牛奶盒</strong> 需先按 <span class="bg-sky-200 text-sky-900 px-1.5 py-0.5 rounded font-black">「清洗」</span> 才能回收！</p>
+        <p>3. <strong class="text-amber-600">紙箱、寶特瓶</strong> 需先按 <span class="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-black">「壓扁」</span> 才能回收！</p>
+        <p>4. 正確分類得 <strong>+10分</strong>，未處理或分類錯誤扣 <strong>-5分</strong>！</p>
+      </div>
+
+      <button id="start-game-btn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-black text-lg py-3 rounded-2xl shadow-lg transition">
+        開始挑戰 <i class="fa-solid fa-play ml-1"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= GAME OVER MODAL ================= -->
+  <div id="gameover-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-4 border-amber-400 relative overflow-hidden">
+      <div class="w-16 h-16 bg-amber-100 text-amber-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      <h2 class="text-2xl font-black text-slate-800">挑戰結束！</h2>
+      <p id="gameover-subtitle" class="text-xs font-bold text-slate-500 mb-4">做的太棒了！地球因你而更美好！</p>
+
+      <div class="grid grid-cols-3 gap-2 bg-slate-50 rounded-2xl p-3 border border-slate-200 mb-4 font-black">
+        <div>
+          <div class="text-[10px] text-slate-400">最終得分</div>
+          <div id="final-score" class="text-xl text-amber-600">0</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-400">分類正確率</div>
+          <div id="final-accuracy" class="text-xl text-emerald-600">0%</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-400">處理總數</div>
+          <div id="final-total" class="text-xl text-sky-600">0</div>
+        </div>
+      </div>
+
+      <div class="bg-sky-50 border border-sky-200 rounded-2xl p-3 text-left mb-5 text-xs text-slate-700 font-bold space-y-1">
+        <div class="text-sky-800 font-black mb-1">💡 講義知識重點複習：</div>
+        <div>• 核心原則：做好「乾淨」與「分類」，提升回收效率！</div>
+        <div>• 資源回收三大類：一般垃圾、廚餘、資源回收物。</div>
+      </div>
+
+      <button id="restart-btn" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-black text-lg py-3 rounded-2xl shadow-lg transition">
+        再玩一次 <i class="fa-solid fa-rotate-right ml-1"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Score Floating Popup Container -->
+  <div id="popup-layer" class="fixed inset-0 pointer-events-none z-50"></div>
+
+  <!-- ================= JAVASCRIPT GAME ENGINE ================= -->
+  <script>
+    // --- 1. Sound Synth Engine (Web Audio API) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playSelect() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playWash() {
+        if (this.muted || !this.ctx) return;
+        const bufSize = this.ctx.sampleRate * 0.25;
+        const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        const src = this.ctx.createBufferSource(); src.buffer = buf;
+        const filter = this.ctx.createBiquadFilter(); filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        src.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+        src.start();
+      }
+      playFlatten() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+      }
+      playCorrect() {
+        if (this.muted || !this.ctx) return;
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.05);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime + i * 0.05);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.05 + 0.18);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + i * 0.05);
+          osc.stop(this.ctx.currentTime + i * 0.05 + 0.18);
+        });
+      }
+      playWrong() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.25);
+      }
+    }
+    const sound = new SoundEngine();
+
+    // --- 2. Item Specifications ---
+    const ITEMS_DB = [
+      { id: 'newspaper', name: '報紙', category: 'recycle', req: 'none', icon: '📰', badgeText: 'NEWS' },
+      { id: 'magazine', name: '雜誌', category: 'recycle', req: 'none', icon: '📖', badgeText: '雜誌' },
+      { id: 'box', name: '紙箱', category: 'recycle', req: 'flatten', icon: '📦', badgeText: '紙箱' },
+      { id: 'bottle', name: '寶特瓶', category: 'recycle', req: 'flatten', icon: '🍾', badgeText: '寶特瓶' },
+      { id: 'container', name: '塑膠餐盒', category: 'recycle', req: 'wash', icon: '🍱', badgeText: '餐盒' },
+      { id: 'banana', name: '香蕉皮', category: 'food', req: 'none', icon: '🍌', badgeText: '廚餘' },
+      { id: 'milk', name: '牛奶盒', category: 'recycle', req: 'wash', icon: '🥛', badgeText: '牛奶' },
+      { id: 'crumpled', name: '一般垃圾', category: 'trash', req: 'none', icon: '🗞️', badgeText: '廢紙團' }
+    ];
+
+    // --- 3. Game Variables ---
+    let score = 0;
+    let timer = 90;
+    let gameState = 'START';
+    let activeItems = [];
+    let selectedItemId = null;
+    let totalProcessed = 0;
+    let totalCorrect = 0;
+    let timerInterval = null;
+    let spawnTimeout = null;
+
+    // --- 4. DOM Elements ---
+    const scoreDisplay = document.getElementById('score-display');
+    const timerDisplay = document.getElementById('timer-display');
+    const itemsContainer = document.getElementById('items-container');
+    const hintText = document.getElementById('hint-text');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+
+    const cleanBtn = document.getElementById('clean-btn');
+    const flattenBtn = document.getElementById('flatten-btn');
+    const homeBtn = document.getElementById('home-btn');
+
+    const startModal = document.getElementById('start-modal');
+    const gameoverModal = document.getElementById('gameover-modal');
+    const startGameBtn = document.getElementById('start-game-btn');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // --- 5. Event Listeners ---
+    function init() {
+      startGameBtn.addEventListener('click', () => {
+        sound.init();
+        startGame();
+      });
+      restartBtn.addEventListener('click', startGame);
+      homeBtn.addEventListener('click', () => {
+        if (gameState === 'PLAYING') {
+          endGame('已返回選單');
+        } else {
+          startModal.classList.remove('hidden');
+        }
+      });
+
+      cleanBtn.addEventListener('click', applyClean);
+      flattenBtn.addEventListener('click', applyFlatten);
+
+      const bins = document.querySelectorAll('.bin-target');
+      bins.forEach(bin => {
+        bin.addEventListener('click', () => {
+          if (selectedItemId !== null) {
+            sortSelectedItem(bin.getAttribute('data-category'));
+          }
+        });
+
+        bin.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          bin.classList.add('drag-over');
+        });
+        bin.addEventListener('dragleave', () => {
+          bin.classList.remove('drag-over');
+        });
+        bin.addEventListener('drop', (e) => {
+          e.preventDefault();
+          bin.classList.remove('drag-over');
+          const id = e.dataTransfer.getData('text/plain');
+          if (id) {
+            selectedItemId = parseFloat(id);
+            sortSelectedItem(bin.getAttribute('data-category'));
+          }
+        });
+      });
+    }
+
+    // --- 6. Core Game Engine & Spawning ---
+    function startGame() {
+      score = 0;
+      timer = 90;
+      totalProcessed = 0;
+      totalCorrect = 0;
+      gameState = 'PLAYING';
+      activeItems = [];
+      selectedItemId = null;
+
+      itemsContainer.innerHTML = '';
+      startModal.classList.add('hidden');
+      gameoverModal.classList.add('hidden');
+
+      updateHUD();
+      setCatFace('normal');
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(updateTimer, 1000);
+
+      scheduleSpawn();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateTimer() {
+      if (gameState !== 'PLAYING') return;
+      timer--;
+      
+      const mins = String(Math.floor(timer / 60)).padStart(2, '0');
+      const secs = String(timer % 60).padStart(2, '0');
+      timerDisplay.textContent = `${mins}:${secs}`;
+
+      const pct = Math.max(0, (timer / 90) * 100);
+      progressBarFill.style.width = `${pct}%`;
+
+      if (timer <= 0) {
+        endGame('時間到！分數結算中...');
+      }
+    }
+
+    function updateHUD() {
+      scoreDisplay.textContent = String(score).padStart(5, '0');
+    }
+
+    function setCatFace(state = 'normal') {
+      const mouthPath = document.getElementById('cat-mouth-svg');
+      const catContainer = document.getElementById('cat-container');
+
+      if (!mouthPath || !catContainer) return;
+
+      if (state === 'happy') {
+        // Happy open smile
+        mouthPath.setAttribute('d', 'M 52 70 Q 60 80 68 70 Z');
+        mouthPath.setAttribute('fill', '#f43f5e');
+        catContainer.classList.add('scale-110');
+        setTimeout(() => catContainer.classList.remove('scale-110'), 400);
+        spawnCatHearts();
+      } else if (state === 'sad') {
+        // Pout / Surprised Mouth
+        mouthPath.setAttribute('d', 'M 55 75 Q 60 70 65 75');
+        mouthPath.setAttribute('fill', 'none');
+        catContainer.classList.add('animate-bounce');
+        setTimeout(() => catContainer.classList.remove('animate-bounce'), 500);
+      } else {
+        // Normal gentle smile
+        mouthPath.setAttribute('d', 'M 54 71 Q 60 76 66 71');
+        mouthPath.setAttribute('fill', 'none');
+      }
+    }
+
+    function spawnCatHearts() {
+      const particlesContainer = document.getElementById('cat-particles');
+      if (!particlesContainer) return;
+
+      const symbols = ['🤍', '💖', '✨', '🤍', '🌸'];
+      for (let i = 0; i < 5; i++) {
+        const p = document.createElement('div');
+        p.className = 'absolute text-base md:text-lg animate-ping pointer-events-none transition-all duration-700';
+        p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+        p.style.left = `${Math.random() * 80 + 10}%`;
+        p.style.top = `${Math.random() * 20 - 10}px`;
+        particlesContainer.appendChild(p);
+
+        setTimeout(() => p.remove(), 700);
+      }
+    }
+
+    function scheduleSpawn() {
+      if (gameState !== 'PLAYING') return;
+      spawnItem();
+      const nextDelay = Math.random() * 1800 + 1200; // 1.2s - 3.0s
+      spawnTimeout = setTimeout(scheduleSpawn, nextDelay);
+    }
+
+    function spawnItem() {
+      if (activeItems.length >= 5) return;
+
+      const template = ITEMS_DB[Math.floor(Math.random() * ITEMS_DB.length)];
+      const uniqueId = Date.now() + Math.random();
+      const speed = 0.12 + Math.random() * 0.08; // smooth horizontal drift
+
+      const item = {
+        uniqueId,
+        ...template,
+        x: -15,
+        speed,
+        isWashed: template.req !== 'wash',
+        isFlattened: template.req !== 'flatten',
+        element: null
+      };
+
+      const el = document.createElement('div');
+      el.className = 'absolute top-1/2 -translate-y-1/2 cursor-pointer transition-transform duration-150 flex flex-col items-center justify-center';
+      el.style.left = '-15%';
+      el.setAttribute('draggable', 'true');
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectItem(uniqueId);
+      });
+
+      el.addEventListener('dragstart', (e) => {
+        selectItem(uniqueId);
+        e.dataTransfer.setData('text/plain', String(uniqueId));
+      });
+
+      item.element = el;
+      renderItemDOM(el, item);
+      itemsContainer.appendChild(el);
+      activeItems.push(item);
+    }
+
+    function renderItemDOM(el, item) {
+      const isSelected = selectedItemId === item.uniqueId;
+      
+      let badgeHTML = '';
+      if (item.req === 'wash') {
+        badgeHTML = item.isWashed 
+          ? '<span class="bg-sky-500 text-white text-[9px] font-black px-1 rounded-full shadow">已洗</span>'
+          : '<span class="bg-rose-500 text-white text-[9px] font-black px-1 rounded-full animate-pulse shadow">需清洗</span>';
+      } else if (item.req === 'flatten') {
+        badgeHTML = item.isFlattened 
+          ? '<span class="bg-amber-500 text-white text-[9px] font-black px-1 rounded-full shadow">已壓扁</span>'
+          : '<span class="bg-rose-500 text-white text-[9px] font-black px-1 rounded-full animate-pulse shadow">需壓扁</span>';
+      }
+
+      el.className = `absolute top-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 flex flex-col items-center justify-center p-2 rounded-2xl bg-white/90 border-2 border-slate-300 shadow-md ${isSelected ? 'item-selected z-30' : 'hover:scale-105 z-10'}`;
+
+      el.innerHTML = `
+        <div class="text-3xl md:text-5xl filter drop-shadow">${item.icon}</div>
+        <div class="font-black text-[10px] md:text-xs text-slate-800 whitespace-nowrap mt-0.5">${item.badgeText}</div>
+        <div class="mt-0.5">${badgeHTML}</div>
+      `;
+    }
+
+    function gameLoop() {
+      if (gameState === 'PLAYING') {
+        for (let i = activeItems.length - 1; i >= 0; i--) {
+          const item = activeItems[i];
+          item.x += item.speed;
+          if (item.element) {
+            item.element.style.left = `${item.x}%`;
+          }
+
+          if (item.x > 102) {
+            totalProcessed++;
+            score = Math.max(0, score - 5);
+            sound.playWrong();
+            showPopupText(item.element, '-5分 ⚠️', 'text-rose-600 font-black text-xl');
+            removeItem(i);
+            updateHUD();
+          }
+        }
+      }
+
+      if (gameState === 'PLAYING') {
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function selectItem(uniqueId) {
+      sound.playSelect();
+      selectedItemId = uniqueId;
+      activeItems.forEach(i => {
+        if (i.element) renderItemDOM(i.element, i);
+      });
+
+      const item = activeItems.find(i => i.uniqueId === selectedItemId);
+      if (item) {
+        if (item.req === 'wash' && !item.isWashed) {
+          hintText.textContent = '提示：需先清洗！';
+        } else if (item.req === 'flatten' && !item.isFlattened) {
+          hintText.textContent = '提示：需先壓扁！';
+        } else {
+          hintText.textContent = `已選取「${item.name}」，請點擊下方正確回收桶！`;
+        }
+      }
+    }
+
+    // --- 7. Cleaning & Flattening Actions ---
+    function applyClean() {
+      if (!selectedItemId) return;
+      const item = activeItems.find(i => i.uniqueId === selectedItemId);
+      if (!item) return;
+
+      if (item.req === 'wash' && !item.isWashed) {
+        item.isWashed = true;
+        sound.playWash();
+        if (item.element) {
+          item.element.classList.add('wash-anim');
+          setTimeout(() => item.element?.classList.remove('wash-anim'), 450);
+          renderItemDOM(item.element, item);
+        }
+        hintText.textContent = '💧 已清洗乾淨！可放入資源回收桶！';
+      } else {
+        hintText.textContent = '這個物品不需要清洗喔！';
+      }
+    }
+
+    function applyFlatten() {
+      if (!selectedItemId) return;
+      const item = activeItems.find(i => i.uniqueId === selectedItemId);
+      if (!item) return;
+
+      if (item.req === 'flatten' && !item.isFlattened) {
+        item.isFlattened = true;
+        sound.playFlatten();
+        if (item.element) {
+          item.element.classList.add('flatten-anim');
+          renderItemDOM(item.element, item);
+        }
+        hintText.textContent = '📐 已壓扁減積！可放入資源回收桶！';
+      } else {
+        hintText.textContent = '這個物品不需要壓扁喔！';
+      }
+    }
+
+    // --- 8. Sorting & Validation ---
+    function sortSelectedItem(targetCategory) {
+      if (!selectedItemId) return;
+      const index = activeItems.findIndex(i => i.uniqueId === selectedItemId);
+      if (index === -1) return;
+
+      const item = activeItems[index];
+      totalProcessed++;
+
+      const binEl = document.getElementById(`bin-${targetCategory}`);
+      const isCorrectCategory = item.category === targetCategory;
+      let isPrepReady = true;
+
+      if (targetCategory === 'recycle') {
+        if (item.req === 'wash' && !item.isWashed) isPrepReady = false;
+        if (item.req === 'flatten' && !item.isFlattened) isPrepReady = false;
+      }
+
+      if (isCorrectCategory && isPrepReady) {
+        // Correct Action (+10分)
+        totalCorrect++;
+        score += 10;
+        sound.playCorrect();
+        showPopupText(binEl, '+10分', 'text-emerald-500 text-2xl font-black');
+        setCatFace('happy');
+        hintText.textContent = `✅ 正確分類「${item.name}」！得 +10分！`;
+      } else {
+        // Mistake (-5分)
+        score = Math.max(0, score - 5);
+        sound.playWrong();
+        showPopupText(binEl, '-5分', 'text-rose-600 text-2xl font-black');
+        setCatFace('sad');
+        document.body.classList.add('shake-screen');
+        setTimeout(() => document.body.classList.remove('shake-screen'), 350);
+
+        if (!isPrepReady) {
+          hintText.textContent = `❌ 錯誤！「${item.name}」需先處理乾淨/壓扁才能回收！`;
+        } else {
+          hintText.textContent = `❌ 分類錯誤！「${item.name}」不屬於這裡喔！`;
+        }
+      }
+
+      removeItem(index);
+      selectedItemId = null;
+      updateHUD();
+    }
+
+    function removeItem(idx) {
+      const item = activeItems[idx];
+      if (item && item.element) {
+        item.element.remove();
+      }
+      activeItems.splice(idx, 1);
+    }
+
+    function showPopupText(targetEl, text, classNames = '') {
+      if (!targetEl) return;
+      const rect = targetEl.getBoundingClientRect();
+      const popup = document.createElement('div');
+      popup.className = `score-popup fixed font-black z-50 pointer-events-none ${classNames}`;
+      popup.textContent = text;
+      popup.style.left = `${rect.left + rect.width / 2 - 25}px`;
+      popup.style.top = `${rect.top - 10}px`;
+
+      document.getElementById('popup-layer').appendChild(popup);
+      setTimeout(() => popup.remove(), 900);
+    }
+
+    function endGame(msg) {
+      gameState = 'GAMEOVER';
+      clearInterval(timerInterval);
+      clearTimeout(spawnTimeout);
+
+      const accuracy = totalProcessed > 0 ? Math.round((totalCorrect / totalProcessed) * 100) : 0;
+      document.getElementById('final-score').textContent = score;
+      document.getElementById('final-accuracy').textContent = `${accuracy}%`;
+      document.getElementById('final-total').textContent = totalProcessed;
+      document.getElementById('gameover-subtitle').textContent = msg;
+
+      gameoverModal.classList.remove('hidden');
+    }
+
+    // Initialize Game Engine on Window Load
+    window.onload = init;
+  </script>
+</body>
+</html>
